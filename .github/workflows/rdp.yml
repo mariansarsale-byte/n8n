@@ -1,1 +1,40 @@
+name: rdp
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 360
+    steps:
+      - name: Restore - Hindi Nabubura
+        shell: powershell
+        run: |
+          mkdir C:\Pangmatagalan -Force
+          try {
+            git clone https://github.com/mariansarsale-byte/n8n.git C:\myfiles --branch backup --depth 1
+            if (Test-Path C:\myfiles\files) { Copy-Item C:\myfiles\files\* C:\Pangmatagalan -Recurse -Force; echo "NABALIK FILES MO LODS!" }
+          } catch { echo "Bagong RDP pa lang" }
 
+      - name: Enable RDP
+        shell: powershell
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0 -Force
+          netsh advfirewall firewall set rule group="remote desktop" new enable=Yes
+          net user runneradmin P@ssw0rd123!
+          
+      - name: Tailscale + Backup
+        shell: powershell
+        run: |
+          Invoke-WebRequest https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe -OutFile ts.exe
+          Start-Process .\ts.exe /quiet -Wait
+          Start-Sleep 20
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=${{ secrets.TSKEY }} --hostname=cp-runner-n8n
+          & "C:\Program Files\Tailscale\tailscale.exe" ip -4
+          echo "SAVE LAHAT SA C:\Pangmatagalan PARA HINDI MABURA!"
+          for ($i=0; $i -lt 360; $i++) { 
+            Write-Host "Running $i/360"
+            Start-Sleep 60 
+          }
+          # Auto save before close
+          mkdir C:\myfiles\files -Force
+          Copy-Item C:\Pangmatagalan\* C:\myfiles\files -Recurse -Force -ErrorAction SilentlyContinue
+          cd C:\myfiles; git config user.email "a@a.com"; git config user.name "bot"; git add .; git commit -m "save"; git push https://${{ secrets.GITHUB_TOKEN }}@github.com/mariansarsale-byte/n8n.git backup -ErrorAction SilentlyContinue
