@@ -11,15 +11,14 @@ jobs:
           net localgroup administrators RDP /add
           reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
           netsh advfirewall firewall set rule group="remote desktop" new enable=Yes
-      - name: Tailscale
-        uses: tailscale/github-action@v3
+      - name: Tailscale v2
+        uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
           hostname: rdp-lods-${{ github.run_number }}
-      - name: KEEP ALIVE - WAG TANGGALIN LODS!
+      - name: KEEP ALIVE 6HOURS
         run: |
           while ($true) {
-            echo "LODS BUHAY PA - $(Get-Date)"
-            Get-Process | Out-Null
+            Write-Host "LODS BUHAY PA - $(Get-Date)"
             Start-Sleep -Seconds 60
           }
