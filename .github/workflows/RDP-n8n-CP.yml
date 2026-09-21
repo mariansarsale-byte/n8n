@@ -1,1 +1,54 @@
+name: RDP-HINDI-NABUBURA
+on: workflow_dispatch
 
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout backup branch
+        uses: actions/checkout@v4
+        with:
+          ref: backup-files
+          path: backup
+        continue-on-error: true
+
+      - name: Restore files
+        shell: powershell
+        run: |
+          if (Test-Path backup) { Copy-Item -Path backup/* -Destination C:\Pangmatagalan -Recurse -Force -ErrorAction SilentlyContinue }
+          New-Item -ItemType Directory -Force -Path C:\Pangmatagalan
+          Write-Host "Files restored!"
+
+      - name: Enable RDP
+        shell: powershell
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0 -Force
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString "P@ssw0rd123!" -AsPlainText -Force)
+          Write-Host "RDP Enabled!"
+
+      - name: Install Tailscale
+        shell: powershell
+        run: |
+          Invoke-WebRequest -Uri https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe -OutFile tailscale-setup.exe
+          Start-Process -FilePath .\tailscale-setup.exe -ArgumentList "/quiet" -Wait
+          Start-Sleep -Seconds 30
+
+      - name: Connect Tailscale
+        shell: powershell
+        run: |
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=cp-runner-n8n --accept-routes --unattended
+          Start-Sleep -Seconds 10
+          & "C:\Program Files\Tailscale\tailscale.exe" ip -4
+
+      - name: Keep Alive 6 Hours
+        shell: powershell
+        run: |
+          Write-Host "RDP IS RUNNING LODS! IP:"
+          & "C:\Program Files\Tailscale\tailscale.exe" ip -4
+          for ($i=0; $i -lt 360; $i++) {
+            Write-Host "Running minute $i / 360 - Files safe in C:\Pangmatagalan"
+            Start-Sleep -Seconds 60
+          }
+          }
