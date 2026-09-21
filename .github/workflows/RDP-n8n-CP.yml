@@ -1,1 +1,51 @@
 
+name: RDP-HINDI-NABUBURA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 360
+    steps:
+      - name: KUNIN DATI MONG FILES LODS
+        continue-on-error: true
+        run: |
+          mkdir C:\Pangmatagalan -Force
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/mariansarsale-byte/n8n.git C:\restore -b backup
+          if (Test-Path "C:\restore\FILES") {
+            xcopy C:\restore\FILES C:\Pangmatagalan /E /Y /I
+            xcopy C:\restore\FILES C:\Users\runneradmin\Desktop\FILES /E /Y /I
+            echo "AYAN NA LODS! NAIBALIK NA DATI MONG FILES!"
+            dir C:\Pangmatagalan
+          } else {
+            echo "Wala pang dati LODS, bago pa lang - pero next time babalik na!"
+          }
+
+      - name: BUHAYIN RDP + AUTO SAVE
+        run: |
+          npm i -g n8n
+          Invoke-WebRequest https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe -OutFile ts.exe
+          Start-Process .\ts.exe /quiet -Wait
+          Start-Sleep 15
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=cp-runner-n8n
+          net user runneradmin P@ssw0rd123!
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          mkdir C:\Pangmatagalan -Force
+          Start-Process n8n start -WindowStyle Hidden
+          echo "LODS DITO KA MAG SAVE: C:\Pangmatagalan - HINDI YAN MABUBURA!"
+          git config --global user.email "save@lods.com"
+          git config --global user.name "save"
+          for ($i=0; $i -lt 360; $i++) {
+            if ($i % 3 -eq 0) {
+              mkdir C:\restore\FILES -Force -ErrorAction SilentlyContinue
+              xcopy C:\Pangmatagalan C:\restore\FILES /E /Y /I -ErrorAction SilentlyContinue
+              xcopy C:\Users\runneradmin\.n8n C:\restore\FILES\.n8n /E /Y /I -ErrorAction SilentlyContinue
+              cd C:\restore; git add . -f; git commit -m "auto save $i" --allow-empty; git push origin backup -f
+              cd $env:GITHUB_WORKSPACE
+              echo "NA SAVE NA LODS $i minutes!"
+            }
+            Sleep 60
+          }
