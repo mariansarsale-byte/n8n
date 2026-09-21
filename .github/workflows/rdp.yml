@@ -1,19 +1,25 @@
-name: rdp
+name: RDP-LODS
 on: workflow_dispatch
 jobs:
-  build:
+  rdp:
     runs-on: windows-latest
-    timeout-minutes: 360
+    timeout-minutes: 350
     steps:
-      - run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0 -Force
+      - name: Create RDP User
+        run: |
+          net user RDP P@ssw0rd12345! /add
+          net localgroup administrators RDP /add
+          reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
           netsh advfirewall firewall set rule group="remote desktop" new enable=Yes
-          net user runneradmin P@ssw0rd123!
-          mkdir C:\Pangmatagalan -Force
-      - run: |
-          Invoke-WebRequest https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe -OutFile ts.exe
-          .\ts.exe /quiet
-          Start-Sleep 25
-          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=${{ secrets.TSKEY }} --hostname=rdp-lods
-          & "C:\Program Files\Tailscale\tailscale.exe" ip -4
-          for ($i=0; $i -lt 360; $i++) { echo ONLINE $i; sleep 60 }
+      - name: Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          hostname: rdp-lods-${{ github.run_number }}
+      - name: KEEP ALIVE - WAG TANGGALIN LODS!
+        run: |
+          while ($true) {
+            echo "LODS BUHAY PA - $(Get-Date)"
+            Get-Process | Out-Null
+            Start-Sleep -Seconds 60
+          }
